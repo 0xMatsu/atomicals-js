@@ -1497,20 +1497,38 @@ program.command('mint-dft')
   .description('Mint coins for a decentralized fungible token (FT)')
   .argument('<ticker>', 'string')
   .option('--initialowner <string>', 'Make change into this wallet')
+  .option('--withoutapi', 'Mint Dft without api')
+  .option('--bitworkc <string>', 'Whether to put any bitwork proof of work into the token mint. Applies to the commit transaction.')
+  .option('--bitworkr <string>', 'Whether to put any bitwork proof of work into the token mint. Applies to the reveal transaction.')
+  .option('--receiver <string>', 'Receive dft with other address')
   .option('--funding <string>', 'Use wallet alias wif key to be used for funding and change')
   .option('--satsbyte <number>', 'Satoshis per byte in fees', '15')
+  .option('--amount <number>', 'Dft per amount', '1000')
   .option('--disablechalk', 'Whether to disable the real-time chalked logging of each hash for Bitwork mining. Improvements mining performance to set this flag')
   .action(async (ticker, options) => {
     try {
       const walletInfo = await validateWalletStorage();
       const config: ConfigurationInterface = validateCliInputs();
       ticker = ticker.toLowerCase();
-      const atomicals = new Atomicals(ElectrumApi.createClient(process.env.ELECTRUMX_PROXY_BASE_URL || ''));
+
+      let atomicals = new Atomicals(ElectrumApi.createClient(''));
+      if (!options.withoutapi) {
+        atomicals = new Atomicals(ElectrumApi.createClient(process.env.ELECTRUMX_PROXY_BASE_URL || ''));
+      }
+
       let walletRecord = resolveWalletAliasNew(walletInfo, options.initialowner, walletInfo.primary);
       let fundingRecord = resolveWalletAliasNew(walletInfo, options.funding, walletInfo.funding);
-      const result: any = await atomicals.mintDftInteractive(walletRecord.address, ticker, fundingRecord.WIF, {
+      let receiver = walletRecord.address
+      if (options.receiver !== "") {
+        receiver = options.receiver
+      }
+
+      const result: any = await atomicals.mintDftInteractive(receiver, ticker, fundingRecord.WIF, {
         satsbyte: parseInt(options.satsbyte),
-        disableMiningChalk: options.disablechalk
+        disableMiningChalk: options.disablechalk,
+        withoutapi: options.withoutapi,
+        bitworkc: options.bitworkc,
+        bitworkr: options.bitworkr,
       });
       handleResultLogging(result);
     } catch (error) {
